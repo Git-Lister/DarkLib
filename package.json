@@ -1,0 +1,29 @@
+{
+  "name": "darklib",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "DarkLib — institutional 1970s/80s broadcast-drama escape game scaffold",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "three": "^0.171.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.171.0",
+    "eslint": "^9.15.0",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.4.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

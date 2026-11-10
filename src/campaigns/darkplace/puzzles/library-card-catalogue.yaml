@@ -1,0 +1,15 @@
+id: library-card-catalogue
+title: Library Card Catalogue
+prompt: >-
+  The card catalogue drawer is stuck. Enter the four-digit call number printed
+  on the spine of "Institutional Broadcast, Vol. 3".
+validation:
+  type: exact
+  answer: '4012'
+penalty: true
+failText: >-
+  The drawer jams harder. A muffled buzzer sounds from the Librarian's office.
+onSolve:
+  event: puzzleSolved
+  puzzleId: library-card-catalogue
+  nextNode: library-interior
