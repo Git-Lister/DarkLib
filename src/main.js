@@ -20,15 +20,14 @@ function main() {
   const typewriter = new TypewriterIntro(eventBus);
 
   typewriter.start(intro).then(() => {
+    const bootText = document.querySelector('p');
+    if (bootText) {
+      bootText.remove();
+    }
     fadeOverlay.fadeOut(500).then(() => {
       eventBus.emit('sceneChanged', 'map');
 
-      console.log('Map loading placeholder...');
-
-      const bt = document.querySelector('p');
-      if (bt) {
-        bt.textContent = 'Map ready';
-      }
+      sceneManager.loadMap();
 
       return fadeOverlay.fadeIn(500);
     });

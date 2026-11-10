@@ -1,7 +1,7 @@
 /**
  * GameState holds the transient state of a DarkLib session: lives, solved
- * puzzles, and the current campus node. It emits domain events through the
- * injected EventBus but does not depend on it directly.
+ * puzzles, and the current campus node. It publishes domain events through
+ * the injected EventBus.
  *
  * @typedef {Object} GameStateConfig
  * @property {number} maxLives - maximum lives (default 3)
@@ -31,7 +31,7 @@ export default class GameState {
    * @returns {number}
    */
   getLives() {
-    throw new Error('GameState.getLives not implemented');
+    return this.lives;
   }
 
   /**
@@ -40,7 +40,13 @@ export default class GameState {
    * @returns {void}
    */
   setLives(value) {
-    throw new Error('GameState.setLives not implemented');
+    this.lives = Math.max(0, Math.min(this.maxLives, value));
+    if (this.eventBus) {
+      this.eventBus.emit('livesChanged', { lives: this.lives });
+    }
+    if (this.lives === 0 && this.eventBus) {
+      this.eventBus.emit('gameOver', null);
+    }
   }
 
   /**
@@ -48,7 +54,7 @@ export default class GameState {
    * @returns {void}
    */
   decrementLives() {
-    throw new Error('GameState.decrementLives not implemented');
+    this.setLives(this.lives - 1);
   }
 
   /**
@@ -57,7 +63,7 @@ export default class GameState {
    * @returns {boolean}
    */
   isSolved(puzzleId) {
-    throw new Error('GameState.isSolved not implemented');
+    return this.solvedPuzzles.has(puzzleId);
   }
 
   /**
@@ -66,7 +72,10 @@ export default class GameState {
    * @returns {void}
    */
   markSolved(puzzleId) {
-    throw new Error('GameState.markSolved not implemented');
+    this.solvedPuzzles.add(puzzleId);
+    if (this.eventBus) {
+      this.eventBus.emit('puzzleSolved', { puzzleId });
+    }
   }
 
   /**
@@ -74,7 +83,7 @@ export default class GameState {
    * @returns {string|null}
    */
   getCurrentNodeId() {
-    throw new Error('GameState.getCurrentNodeId not implemented');
+    return this.currentNodeId;
   }
 
   /**
@@ -83,6 +92,9 @@ export default class GameState {
    * @returns {void}
    */
   setCurrentNodeId(nodeId) {
-    throw new Error('GameState.setCurrentNodeId not implemented');
+    this.currentNodeId = nodeId;
+    if (this.eventBus) {
+      this.eventBus.emit('nodeArrived', { nodeId });
+    }
   }
 }

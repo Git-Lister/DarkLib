@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import MapScene from '../map/MapScene.js';
 
 /**
- * SceneManager owns the Three.js renderer, camera, and scene for DarkLib.
- * It renders a blank orthographic scene until the map is built in Tranche 2.
+ * SceneManager owns the Three.js renderer and the render loop. It can switch
+ * between the initial blank scene and a loaded MapScene.
  */
 export default class SceneManager {
   constructor() {
@@ -16,11 +17,19 @@ export default class SceneManager {
     this.canvas = null;
     /** @type {number|null} */
     this.animationFrameId = null;
+    /** @type {THREE.Scene|null} */
+    this.activeScene = null;
+    /** @type {THREE.Camera|null} */
+    this.activeCamera = null;
+    /** @type {MapScene|null} */
+    this.mapScene = null;
+    /** @type {THREE.Clock|null} */
+    this.clock = null;
   }
 
   /**
-   * Instantiate a Three.js WebGLRenderer attached to the given canvas and
-   * set up an OrthographicCamera for a blank scene.
+   * Instantiate a Three.js WebGLRenderer attached to the given canvas and set
+   * up an OrthographicCamera for a blank scene.
    * @param {string} canvasId
    * @returns {void}
    */
@@ -30,14 +39,17 @@ export default class SceneManager {
       throw new Error(`SceneManager.init: canvas '${canvasId}' not found`);
     }
 
+    this.canvas.style.width = '100vw';
+    this.canvas.style.height = '100vh';
+
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera();
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: false });
     this.renderer.setClearColor(0x1a1a1a, 1);
 
-    this.updateCamera();
-    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+    this.clock = new THREE.Clock();
 
+    this.resize();
     window.addEventListener('resize', this.onResize.bind(this));
   }
 
@@ -47,14 +59,14 @@ export default class SceneManager {
    */
   updateCamera() {
     if (!this.camera || !this.canvas) return;
-    const d = 10;
+    const d = 30;
     const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
     this.camera.left = -d * aspect;
     this.camera.right = d * aspect;
     this.camera.top = d;
     this.camera.bottom = -d;
-    this.camera.near = -100;
-    this.camera.far = 100;
+    this.camera.near = 0.1;
+    this.camera.far = 1000;
     this.camera.updateProjectionMatrix();
   }
 
@@ -63,23 +75,74 @@ export default class SceneManager {
    * @returns {void}
    */
   onResize() {
-    if (!this.renderer || !this.canvas || !this.camera) return;
-    this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+    if (!this.renderer || !this.canvas) return;
+    this.resize();
     this.updateCamera();
+    if (this.activeCamera && this.activeCamera.isOrthographicCamera) {
+      const d = 30;
+      const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
+      this.activeCamera.left = -d * aspect;
+      this.activeCamera.right = d * aspect;
+      this.activeCamera.top = d;
+      this.activeCamera.bottom = -d;
+      this.activeCamera.updateProjectionMatrix();
+    }
   }
 
   /**
-   * Start the requestAnimationFrame render loop for the blank scene.
+   * Set the renderer size to match the window dimensions.
+   * @returns {void}
+   */
+  resize() {
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * Switch the active scene and camera used by the render loop.
+   * @param {THREE.Scene} scene
+   * @param {THREE.Camera} camera
+   * @returns {void}
+   */
+  setScene(scene, camera) {
+    this.activeScene = scene;
+    this.activeCamera = camera;
+  }
+
+  /**
+   * Load the campus map: create a MapScene, initialise it with the renderer,
+   * and switch the render loop over to it.
+   * @returns {void}
+   */
+  loadMap() {
+    if (!this.renderer) {
+      throw new Error('SceneManager.loadMap: renderer not initialised');
+    }
+    this.mapScene = new MapScene();
+    this.mapScene.init(this.renderer);
+    this.setScene(this.mapScene.scene, this.mapScene.camera);
+  }
+
+  /**
+   * Start the requestAnimationFrame render loop. Uses THREE.Clock for dt and
+   * passes it to the active map scene.
    * @returns {void}
    */
   startRenderLoop() {
     const animate = () => {
-      if (this.renderer && this.scene && this.camera) {
-        this.renderer.render(this.scene, this.camera);
+      const dt = this.clock ? this.clock.getDelta() : 0;
+
+      if (this.mapScene) {
+        this.mapScene.update(dt);
+      }
+
+      const scene = this.activeScene || this.scene;
+      const camera = this.activeCamera || this.camera;
+      if (this.renderer && scene && camera) {
+        this.renderer.render(scene, camera);
       }
       this.animationFrameId = requestAnimationFrame(animate);
     };
-    animate();
+    requestAnimationFrame(animate);
   }
 
   /**
