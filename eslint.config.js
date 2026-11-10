@@ -14,13 +14,18 @@ export default [
         performance: 'readonly',
         localStorage: 'readonly',
         sessionStorage: 'readonly',
-      },
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+        console: 'readonly'
+      }
     },
     rules: {
       // Stub methods intentionally declare unused parameters for the interface
       // contract; bodies throw "not implemented" in Tranche 0.
-      'no-unused-vars': ['error', { args: 'none' }],
-    },
+      'no-unused-vars': ['error', { args: 'none' }]
+    }
   },
   {
     files: ['test/**/*.test.js', 'test/**/*.spec.js'],
@@ -33,8 +38,8 @@ export default [
         beforeEach: 'readonly',
         afterEach: 'readonly',
         beforeAll: 'readonly',
-        afterAll: 'readonly',
-      },
-    },
-  },
+        afterAll: 'readonly'
+      }
+    }
+  }
 ];

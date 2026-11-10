@@ -1,21 +1,2 @@
-/**
- * DarkPlace campaign typewriter intro text. Displayed by TypewriterIntro
- * before the map loads.
- */
-export const intro = `DarkLib boot sequence initiated.
+export const intro = `Welcome to the Darkplace Library. Please ensure your terminal is secure. The archives are waiting. Do not attempt to leave before your shift is complete.`;
 
-Welcome to Dark Place.
-
-Locate the Library. Solve the catalogue puzzle. Do not lose all three lives.
-
-Press any key to continue.`;
-
-/**
- * Returns the campaign intro text.
- * @returns {string}
- */
-export function getIntro() {
-  throw new Error('narrative.intro.getIntro not implemented');
-}
-
-export default { intro, getIntro };
