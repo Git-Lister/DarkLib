@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DarkLib — Staff Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #0a0a0a; color: #33cc33; font-family: 'Courier New', Courier, monospace; font-size: 14px; height: 100%; }
+    body { padding: 24px; }
+    h1 { font-size: 16px; margin: 0 0 24px 0; padding-bottom: 8px; border-bottom: 1px solid #33cc33; letter-spacing: 2px; }
+    #auth { margin-bottom: 32px; max-width: 420px; }
+    label { display: block; margin-bottom: 8px; letter-spacing: 1px; }
+    input[type="text"] { background: #000; color: #33cc33; border: 1px solid #33cc33; padding: 6px 10px; font-family: inherit; font-size: 14px; width: 260px; }
+    input[type="text"]:focus { outline: none; border-color: #66ff66; }
+    button { background: #000; color: #33cc33; border: 1px solid #33cc33; padding: 6px 14px; font-family: inherit; font-size: 14px; cursor: pointer; letter-spacing: 1px; }
+    button:hover { background: #33cc33; color: #000; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #table-container { display: none; }
+    #status { margin-bottom: 12px; font-size: 12px; color: #66cc66; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #33cc33; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #111; color: #66ff66; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    td.puzzle-id { font-family: inherit; }
+    tr.empty td { color: #666; text-align: center; }
+    .unreachable td { color: #cc3333; text-align: center; }
+    .hint { font-size: 11px; color: #666; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>DarkLib — Staff Event Dashboard</h1>
+  <div id="auth">
+    <label for="staff-token">Enter Staff Token:</label>
+    <input type="text" id="staff-token" autocomplete="off" maxlength="32">
+    <button id="unlock">Unlock</button>
+    <p class="hint">Hint: "darkplace"</p>
+  </div>
+  <div id="table-container">
+    <p id="status">Polling http://localhost:8787/events every 3s …</p>
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Event</th><th>Puzzle ID</th></tr>
+      </thead>
+      <tbody id="events-body"></tbody>
+    </table>
+  </div>
+  <script>
+    (function () {
+      const EVENTS_URL = 'http://localhost:8787/events';
+      const STAFF_TOKEN = 'darkplace';
+      const POLL_INTERVAL_MS = 3000;
+
+      const eventsBody = document.getElementById('events-body');
+      const container = document.getElementById('table-container');
+      const tokenInput = document.getElementById('staff-token');
+      const unlockBtn = document.getElementById('unlock');
+
+      function formatTime(timestamp) {
+        if (!timestamp) {
+          return '—';
+        }
+        const date = new Date(timestamp);
+        return date.toISOString().replace('T', ' ').slice(0, 19);
+      }
+
+      function render(events) {
+        eventsBody.innerHTML = '';
+        if (!Array.isArray(events) || events.length === 0) {
+          const row = document.createElement('tr');
+          row.className = 'empty';
+          const cell = document.createElement('td');
+          cell.colSpan = 3;
+          cell.textContent = '(no events yet)';
+          row.appendChild(cell);
+          eventsBody.appendChild(row);
+          return;
+        }
+
+        // Newest events first.
+        [...events].reverse().forEach(function (event) {
+          var row = document.createElement('tr');
+          var timeCell = document.createElement('td');
+          var eventCell = document.createElement('td');
+          var puzzleCell = document.createElement('td');
+
+          timeCell.textContent = formatTime(event && event.timestamp);
+          eventCell.textContent = (event && event.event) || '—';
+          puzzleCell.className = 'puzzle-id';
+          puzzleCell.textContent = (event && event.payload && event.payload.puzzleId !== undefined)
+            ? event.payload.puzzleId
+            : '—';
+
+          row.appendChild(timeCell);
+          row.appendChild(eventCell);
+          row.appendChild(puzzleCell);
+          eventsBody.appendChild(row);
+        });
+      }
+
+      async function poll() {
+        try {
+          const response = await fetch(EVENTS_URL);
+          const events = await response.json();
+          render(events);
+        } catch (error) {
+          eventsBody.innerHTML = '<tr class="unreachable"><td colspan="3">(backend unreachable — is the event receiver running on http://localhost:8787?)</td></tr>';
+        }
+      }
+
+      function attemptUnlock() {
+        if (tokenInput.value === STAFF_TOKEN) {
+          container.style.display = 'block';
+          tokenInput.disabled = true;
+          unlockBtn.disabled = true;
+          poll();
+          setInterval(poll, POLL_INTERVAL_MS);
+        } else {
+          tokenInput.value = '';
+        }
+      }
+
+      unlockBtn.addEventListener('click', attemptUnlock);
+      tokenInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          attemptUnlock();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

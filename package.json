@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "server": "node server/index.js"
+    "server": "node serverless/event-receiver.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

@@ -8,27 +8,23 @@
  * @typedef {import('../events/EventBus.js').default} EventBus
  */
 
-const ENDPOINT = 'http://localhost:3000/events';
+const DEFAULT_ENDPOINT = 'http://localhost:8787/events';
 
 export default class RemoteReporter {
   constructor() {
     /** @type {string|null} */
     this.endpoint = null;
-    /** @type {string|null} */
-    this.token = null;
     /** @type {EventBus|null} */
     this.eventBus = null;
   }
 
   /**
-   * Configures the reporting endpoint and auth token.
-   * @param {string} endpoint
-   * @param {string} token
+   * Configures the reporting endpoint.
+   * @param {string} [url] - Endpoint URL. Defaults to `http://localhost:8787/events`.
    * @returns {void}
    */
-  configure(endpoint, token) {
-    this.endpoint = endpoint;
-    this.token = token;
+  init(url) {
+    this.endpoint = url ?? DEFAULT_ENDPOINT;
   }
 
   /**
@@ -36,9 +32,11 @@ export default class RemoteReporter {
    * @param {EventBus} eventBus
    * @returns {void}
    */
-  init(eventBus) {
+  start(eventBus) {
+    if (!eventBus) {
+      return;
+    }
     this.eventBus = eventBus;
-    this.endpoint = ENDPOINT;
 
     const report = (eventName) => (payload) => {
       this.postEvent({ event: eventName, payload });
@@ -51,8 +49,8 @@ export default class RemoteReporter {
   }
 
   /**
-   * Posts a single event to the endpoint. Network errors are logged to the
-   * console and swallowed so the game keeps running.
+   * Posts a single event to the endpoint. Network errors are logged as a
+   * warning and swallowed so the game keeps running.
    * @param {Object} event
    * @returns {Promise<void>}
    */
@@ -66,11 +64,16 @@ export default class RemoteReporter {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(event)
+        body: JSON.stringify({
+          event: event.event,
+          payload: event.payload,
+          timestamp: Date.now(),
+          playerId: 'guest'
+        })
       });
     } catch (error) {
       // Network errors must not break the game.
-      console.error('RemoteReporter: failed to post event', error);
+      console.warn('RemoteReporter: failed to post event', error);
     }
   }
 }

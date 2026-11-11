@@ -184,26 +184,25 @@ Not in scope for Tranche 4 (`RemoteReporter` remains a stub; serverless reportin
 ## Files Created
 
 ### New files
-- `server/index.js` — Express server with `better-sqlite3` SQLite database at `server/db.sqlite`. Creates the `events` table (`id`, `event`, `payload`, `timestamp`). Implements `POST /events` (receives `{ event, payload }`, writes to the database) and `GET /events` (returns all events for polling). Serves `GET /dashboard` with `server/dashboard.html`.
-- `server/dashboard.html` — Static staff dashboard served at `GET /dashboard`. Vanilla JS polls `GET /events` every 5 seconds and renders a table of `[Timestamp] Event Name | Payload`. Styled with monospace font, black background, green text.
-- `test/RemoteReporter.test.js` — mocks `fetch` to verify `RemoteReporter` posts the correct payload for `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver`, and that network failures are logged without breaking the game.
+- `serverless/event-receiver.js` — Local mock backend using only Node's built-in `http` module (no Express, per spec). Listens on port `8787`, enables CORS headers (`Access-Control-Allow-Origin: *`) and handles `OPTIONS` preflight so the Vite dev server can talk to it. Handles `POST /events` (parses the JSON body and appends it to an in-memory array, optionally persisted to `serverless/events.json`) and `GET /events` (returns the array of events as JSON).
+- `serverless/dashboard.html` — Standalone staff dashboard (no React/Vite build step). Institutional monospace style on a black/green palette. On load it shows an "Enter Staff Token:" prompt; entering the hardcoded token `"darkplace"` reveals a `<table>` (Time, Event, Puzzle ID) that polls `http://localhost:8787/events` every 3 seconds via `setInterval`.
+- `test/RemoteReporter.test.js` — mocks `fetch` to verify `RemoteReporter` posts the correct payload (`{ event, payload, timestamp, playerId: 'guest' }`) for `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver` to `http://localhost:8787/events`, and that network failures are logged as a warning without breaking the game.
 
 ## Files Modified
 
-- `eslint.config.js` — added an `ignores` block for `dist/**` and `server/db.sqlite` so `npm run lint` only checks source code; added `fetch` and `Response` to the readonly globals.
-- `package.json` — added `express`, `cors`, and `better-sqlite3` to dependencies; added the `"server": "node server/index.js"` script.
-- `src/reports/RemoteReporter.js` — replaced throwing stubs with real implementation: `init(eventBus)` subscribes to `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver`; each event POSTs `{ event, payload }` to `http://localhost:3000/events`; `postEvent()` handles network errors gracefully (logs to console, does not break the game); `configure(endpoint, token)` retained for endpoint/token configuration.
-- `src/main.js` — imports `RemoteReporter`, constructs it, and calls `reporter.init(eventBus)` so game events are forwarded to the reporting endpoint.
+- `src/reports/RemoteReporter.js` — replaced stub with real implementation: `init(url)` stores the endpoint URL (default `http://localhost:8787/events`); `start(eventBus)` subscribes to `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver`; each event POSTs `{ event, payload, timestamp: Date.now(), playerId: 'guest' }`; `postEvent()` uses `fetch` in a try/catch, logs a warning on network failure, and never crashes the game.
+- `src/main.js` — instantiates `RemoteReporter`, calls `reporter.init()` and `reporter.start(eventBus)` so game events are forwarded to the reporting endpoint from boot.
+- `package.json` — the `"server"` script now runs `node serverless/event-receiver.js`.
 
 ## Assumptions
-- The reporting server runs locally on `http://localhost:3000` during development (not production deployment).
-- `RemoteReporter.init()` is called in `src/main.js` after the `EventBus` is created, so all game events are captured from boot.
-- Event payloads are forwarded verbatim: `nodeArrived → { nodeId }`, `puzzleSolved → { puzzleId }`, `puzzleFailed → { puzzleId, failText }`, `gameOver → null`.
-- `better-sqlite3` is used (synchronous SQLite) because it is simple and sufficient for local development; no external server or Google login is required, per ARCHITECTURE.md / REQUIREMENTS.md.
-- The dashboard polls every 5 seconds, per REQUIREMENTS.md ("staff dashboard polls every 10s" is a target; Tranche 5 uses 5s for responsiveness per the spec).
+- The reporting server runs locally on `http://localhost:8787` during development (not production deployment).
+- `RemoteReporter.init()` and `start(eventBus)` are called in `src/main.js` after the `EventBus` is created, so all game events are captured from boot.
+- Event payloads are forwarded verbatim with `timestamp: Date.now()` and `playerId: 'guest'`: `nodeArrived → { nodeId }`, `puzzleSolved → { puzzleId }`, `puzzleFailed → { puzzleId, failText }`, `gameOver → null`.
+- The dashboard polls every 3 seconds, per the Tranche 5 spec.
+- No database or real authentication: in-memory storage with optional `events.json` persistence and a hardcoded JS token check, per the out-of-scope constraints.
 
 ## Deviations from ARCHITECTURE.md / AESTHETIC-SPEC.md
-- None. No changes to game logic, UI, or 3D rendering. The dashboard uses the project's monospace / black-and-green aesthetic.
+- None. No changes to game logic, UI, or 3D rendering. The dashboard uses the project's monospace / black-and-green institutional aesthetic; no `.glb`, no PBR.
 
 ## Questions / Uncertainties
 - None.
@@ -218,19 +217,19 @@ Not in scope for Tranche 4 (`RemoteReporter` remains a stub; serverless reportin
 
  RUN  v2.1.9 /home/ghaigh/github/DarkLib
 
- ✓ test/GameState.test.js (6 tests) 5ms
- ✓ test/RemoteReporter.test.js (6 tests) 5ms
- ✓ test/MapData.test.js (7 tests) 5ms
- ✓ test/RoomData.test.js (4 tests) 3ms
- ✓ test/TypewriterIntro.test.js (4 tests) 31ms
- ✓ test/EventBus.test.js (3 tests) 4ms
+ ✓ test/RoomData.test.js (4 tests) 5ms
+ ✓ test/MapData.test.js (7 tests) 6ms
+ ✓ test/EventBus.test.js (3 tests) 6ms
+ ✓ test/GameState.test.js (6 tests) 8ms
+ ✓ test/RemoteReporter.test.js (7 tests) 10ms
+ ✓ test/TypewriterIntro.test.js (4 tests) 40ms
 
  Test Files  6 passed (6)
-      Tests  30 passed (30)
-   Start at  10:09:19
-   Duration  636ms (transform 89ms, setup 0ms, collect 109ms, tests 52ms, environment 1.74s, prepare 583ms)
+      Tests  31 passed (31)
+   Start at  14:16:27
+   Duration  1.35s (transform 117ms, setup 0ms, collect 223ms, tests 74ms, environment 4.80s, prepare 784ms)
 ```
-Result: PASS — all 30 tests pass (6 GameState + 6 RemoteReporter + 7 MapData + 4 RoomData + 4 TypewriterIntro + 3 EventBus).
+Result: PASS — all 31 tests pass (7 RemoteReporter + 6 GameState + 7 MapData + 4 RoomData + 4 TypewriterIntro + 3 EventBus).
 
 `npm run lint` — verbatim output:
 ```
@@ -238,16 +237,18 @@ Result: PASS — all 30 tests pass (6 GameState + 6 RemoteReporter + 7 MapData +
 > eslint .
 
 ```
-Result: PASS — zero lint errors (`dist/` and `server/db.sqlite` are ignored; all source is clean).
+Result: PASS — zero lint errors (`dist/` is ignored via the `ignores` array in `eslint.config.js`; all source is clean).
 
 ### Manual smoke test
-Started `node server/index.js`, verified:
-- `POST /events` → `{"ok":true}` and stores the event
+Started `node serverless/event-receiver.js`, verified:
+- CORS `OPTIONS /events` → `204 No Content`
+- `POST /events` → `{"ok":true}` and stores the event; persisted to `serverless/events.json`
 - `GET /events` → returns stored events as JSON
-- `GET /dashboard` → HTTP 200 with the dashboard HTML
+- `GET /unknown` → `404 { ok: false, error: 'not found' }`
+- Network failure: `fetch` rejection → console warning, game keeps running (covered by `test/RemoteReporter.test.js`)
 
 ### Mobile
 No mobile-specific changes in Tranche 5.
 
 ### Event reporting
-Now in scope (Tranche 5): `RemoteReporter` forwards `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver` to `http://localhost:3000/events`. Network errors are caught and logged; the game keeps running.
+Now in scope (Tranche 5): `RemoteReporter` forwards `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver` to `http://localhost:8787/events`. Network errors are caught and logged as warnings; the game keeps running.

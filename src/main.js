@@ -13,7 +13,8 @@ const gameState = new GameState(eventBus);
 
 // Forward game events to the local reporting endpoint.
 const reporter = new RemoteReporter();
-reporter.init(eventBus);
+reporter.init();
+reporter.start(eventBus);
 
 async function main() {
   const bootText = document.querySelector('p');
