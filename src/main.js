@@ -5,10 +5,15 @@ import TypewriterIntro from './engine/ui/TypewriterIntro.js';
 import PuzzleRuntime from './engine/puzzle-runtime/PuzzleRuntime.js';
 import LivesOverlay from './engine/ui/LivesOverlay.js';
 import GameOverOverlay from './engine/ui/GameOverOverlay.js';
+import RemoteReporter from './reports/RemoteReporter.js';
 import { intro } from './campaigns/darkplace/narrative/intro.js';
 
 const eventBus = new EventBus();
 const gameState = new GameState(eventBus);
+
+// Forward game events to the local reporting endpoint.
+const reporter = new RemoteReporter();
+reporter.init(eventBus);
 
 async function main() {
   const bootText = document.querySelector('p');

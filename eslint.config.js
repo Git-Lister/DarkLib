@@ -1,6 +1,10 @@
 import js from '@eslint/js';
 
 export default [
+  {
+    // Ignore build artifacts and generated files so lint only checks source.
+    ignores: ['dist/**', 'node_modules/**'],
+  },
   js.configs.recommended,
   {
     languageOptions: {
@@ -18,7 +22,8 @@ export default [
         clearTimeout: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        fetch: 'readonly'
       }
     },
     rules: {
@@ -38,7 +43,8 @@ export default [
         beforeEach: 'readonly',
         afterEach: 'readonly',
         beforeAll: 'readonly',
-        afterAll: 'readonly'
+        afterAll: 'readonly',
+        Response: 'readonly'
       }
     }
   }
