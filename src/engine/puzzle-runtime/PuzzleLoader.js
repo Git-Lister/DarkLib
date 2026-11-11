@@ -1,13 +1,21 @@
 /**
  * PuzzleLoader reads puzzle definitions from YAML files authored by staff.
  */
+import catalogueRaw from '../../campaigns/darkplace/puzzles/library-card-catalogue.yaml?raw';
+import yaml from 'js-yaml';
+
 export default class PuzzleLoader {
   /**
-   * Loads and parses a puzzle YAML file.
-   * @param {string} path
+   * Loads all puzzle definitions and returns an object mapping puzzle IDs to
+   * their definitions.
    * @returns {Promise<Object>}
    */
-  loadFromYAML(path) {
-    throw new Error('PuzzleLoader.loadFromYAML not implemented');
+  async loadPuzzles() {
+    const puzzles = {};
+    const parsed = yaml.load(catalogueRaw);
+    if (parsed && parsed.id) {
+      puzzles[parsed.id] = parsed;
+    }
+    return puzzles;
   }
 }

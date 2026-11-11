@@ -1,9 +1,5 @@
 import * as THREE from 'three';
-import {
-  getNodeById,
-  findNearestNode,
-  findShortestPath
-} from '../map/MapData.js';
+import { getNodeById, findNearestNode, findShortestPath } from '../map/MapData.js';
 
 /**
  * PlayerController drives a simple distinguishable player mesh. In map mode it
@@ -49,6 +45,8 @@ export default class PlayerController {
     this.targetPos = null;
     /** @type {THREE.Mesh[]} */
     this.doors = [];
+    /** @type {THREE.Mesh[]} */
+    this.interactables = [];
 
     this._onClick = this._onClick.bind(this);
     this._onTouchStart = this._onTouchStart.bind(this);
@@ -73,7 +71,7 @@ export default class PlayerController {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     const material = new THREE.MeshLambertMaterial({
       color: 0xffeb3b,
-      flatShading: true
+      flatShading: true,
     });
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.position.set(0, 0.5, 0);
@@ -84,7 +82,7 @@ export default class PlayerController {
 
     domElement.addEventListener('click', this._onClick);
     domElement.addEventListener('touchstart', this._onTouchStart, {
-      passive: false
+      passive: false,
     });
   }
 
@@ -118,6 +116,16 @@ export default class PlayerController {
    */
   setDoors(doors) {
     this.doors = doors;
+  }
+
+  /**
+   * Register interactive meshes so clicks on them trigger puzzle
+   * interactions via the `interacted` event.
+   * @param {THREE.Mesh[]} interactables
+   * @returns {void}
+   */
+  setInteractables(interactables) {
+    this.interactables = interactables;
   }
 
   /**
@@ -164,18 +172,25 @@ export default class PlayerController {
   _handlePointer() {
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    if (this.mode === 'interior' && this.doors.length > 0) {
-      const hits = this.raycaster.intersectObjects(this.doors);
-      if (hits.length > 0) {
-        const hit = hits[0];
-        const userData = hit.object.userData || {};
-        if (userData.isDoor && this.eventBus) {
-          this.eventBus.emit('portalEntered', {
-            doorId: userData.doorId,
-            target: userData.target
-          });
+    if (this.mode === 'interior') {
+      const targets = [...this.doors, ...this.interactables];
+      if (targets.length > 0) {
+        const hits = this.raycaster.intersectObjects(targets);
+        if (hits.length > 0) {
+          const hit = hits[0];
+          const userData = hit.object.userData || {};
+          if (userData.isDoor && this.eventBus) {
+            this.eventBus.emit('portalEntered', {
+              doorId: userData.doorId,
+              target: userData.target,
+            });
+            return;
+          }
+          if (userData.isTerminal && this.eventBus) {
+            this.eventBus.emit('interacted', { puzzleId: userData.puzzleId });
+            return;
+          }
         }
-        return;
       }
     }
 
@@ -259,9 +274,7 @@ export default class PlayerController {
     if (!targetNode) return;
 
     const targetPos = new THREE.Vector3(targetNode.x, 0.5, targetNode.z);
-    const direction = new THREE.Vector3()
-      .subVectors(targetPos, this.mesh.position)
-      .normalize();
+    const direction = new THREE.Vector3().subVectors(targetPos, this.mesh.position).normalize();
 
     this.mesh.position.addScaledVector(direction, this.speed * dt);
 

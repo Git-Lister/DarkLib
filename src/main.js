@@ -2,12 +2,15 @@ import EventBus from './engine/events/EventBus.js';
 import SceneManager from './engine/scenes/SceneManager.js';
 import GameState from './engine/state/GameState.js';
 import TypewriterIntro from './engine/ui/TypewriterIntro.js';
+import PuzzleRuntime from './engine/puzzle-runtime/PuzzleRuntime.js';
+import LivesOverlay from './engine/ui/LivesOverlay.js';
+import GameOverOverlay from './engine/ui/GameOverOverlay.js';
 import { intro } from './campaigns/darkplace/narrative/intro.js';
 
 const eventBus = new EventBus();
 const gameState = new GameState(eventBus);
 
-function main() {
+async function main() {
   const bootText = document.querySelector('p');
   if (bootText) {
     bootText.textContent = 'Scaffold ready.';
@@ -16,6 +19,24 @@ function main() {
   const sceneManager = new SceneManager(eventBus, gameState);
   sceneManager.init('game-canvas');
   sceneManager.startRenderLoop();
+
+  const puzzleRuntime = new PuzzleRuntime(eventBus, gameState);
+  await puzzleRuntime.init();
+
+  const livesOverlay = new LivesOverlay(eventBus);
+  livesOverlay.render();
+
+  // Self-registers its `gameOver` listener on the event bus.
+  new GameOverOverlay(eventBus, gameState, () => {
+    puzzleRuntime.openPuzzle(puzzleRuntime.getCurrentPuzzleId());
+  });
+
+  // Clicking the terminal in the entrance room opens its puzzle.
+  eventBus.on('interacted', (payload) => {
+    if (payload && payload.puzzleId) {
+      puzzleRuntime.openPuzzle(payload.puzzleId);
+    }
+  });
 
   const fadeOverlay = sceneManager.fadeOverlay;
   const typewriter = new TypewriterIntro(eventBus);

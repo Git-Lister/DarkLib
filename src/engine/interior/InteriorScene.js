@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 import RoomData from './RoomData.js';
-import {
-  createFloor,
-  createWall,
-  createBookshelf
-} from './InteriorAssets.js';
+import { createFloor, createWall, createBookshelf } from './InteriorAssets.js';
 import PlayerController from '../player/PlayerController.js';
 
 /**
@@ -33,6 +29,8 @@ export default class InteriorScene {
     this.rooms = [];
     /** @type {THREE.Mesh[]} */
     this.doorMeshes = [];
+    /** @type {THREE.Mesh[]} */
+    this.interactables = [];
     this._onPortalEntered = this._onPortalEntered.bind(this);
   }
 
@@ -107,7 +105,7 @@ export default class InteriorScene {
       createWall(w, wallHeight, wallThickness, wallColor), // north
       createWall(w, wallHeight, wallThickness, wallColor), // south
       createWall(wallThickness, wallHeight, d, wallColor), // west
-      createWall(wallThickness, wallHeight, d, wallColor) // east
+      createWall(wallThickness, wallHeight, d, wallColor), // east
     ];
     walls[0].position.set(x, wallHeight / 2, z - d / 2); // north
     walls[1].position.set(x, wallHeight / 2, z + d / 2); // south
@@ -116,11 +114,7 @@ export default class InteriorScene {
     walls.forEach((wall) => this.roomRoot.add(wall));
 
     // Bookshelves along the north and south walls.
-    const shelves = [
-      createBookshelf(4, 3, 1),
-      createBookshelf(4, 3, 1),
-      createBookshelf(4, 3, 1)
-    ];
+    const shelves = [createBookshelf(4, 3, 1), createBookshelf(4, 3, 1), createBookshelf(4, 3, 1)];
     shelves[0].position.set(x - 3, 0, z - d / 2 - 0.51);
     shelves[1].position.set(x + 3, 0, z - d / 2 - 0.51);
     shelves[2].position.set(x - 3, 0, z + d / 2 + 0.51);
@@ -133,6 +127,30 @@ export default class InteriorScene {
     if (room.id === 'entrance') {
       this._addDoor(room, 'door-exit', 'exit', x + w / 2 + 0.21, z, Math.PI / 2, 0);
     }
+
+    // Interactive terminal desk in the entrance room: clicking it opens the
+    // library card catalogue puzzle.
+    if (room.id === 'entrance') {
+      this._addTerminal(room);
+    }
+  }
+
+  /**
+   * Add a visually distinct interactive terminal desk to the entrance room.
+   * Clicking it opens the library card catalogue puzzle.
+   * @param {{id: string, x: number, z: number, w: number, d: number}} room
+   * @returns {void}
+   */
+  _addTerminal(room) {
+    const { x, z } = room;
+    const terminal = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 1.1, 1.0),
+      new THREE.MeshLambertMaterial({ color: 0x546e7a, flatShading: true })
+    );
+    terminal.position.set(x + 3.5, 0.55, z + 3.5);
+    terminal.userData = { isTerminal: true, puzzleId: 'library-card-catalogue' };
+    this.roomRoot.add(terminal);
+    this.interactables.push(terminal);
   }
 
   /**
@@ -175,6 +193,7 @@ export default class InteriorScene {
       this._disposeObject(child);
     }
     this.doorMeshes = [];
+    this.interactables = [];
 
     this._buildRoom(room);
     this.currentRoomId = roomId;
@@ -185,6 +204,7 @@ export default class InteriorScene {
     }
     this.playerController.setCurrentRoom(room);
     this.playerController.setDoors(this.doorMeshes);
+    this.playerController.setInteractables(this.interactables);
 
     this.gameState.setCurrentNodeId(roomId);
   }
@@ -253,5 +273,6 @@ export default class InteriorScene {
       }
     }
     this.doorMeshes = [];
+    this.interactables = [];
   }
 }

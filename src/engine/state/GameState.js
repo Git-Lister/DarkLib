@@ -23,6 +23,7 @@ export default class GameState {
     this.initialLives = config.initialLives ?? 3;
     this.lives = this.initialLives;
     this.solvedPuzzles = new Set();
+    this.inventory = [];
     this.currentNodeId = null;
   }
 
@@ -40,11 +41,12 @@ export default class GameState {
    * @returns {void}
    */
   setLives(value) {
+    const previousLives = this.lives;
     this.lives = Math.max(0, Math.min(this.maxLives, value));
     if (this.eventBus) {
       this.eventBus.emit('livesChanged', { lives: this.lives });
     }
-    if (this.lives === 0 && this.eventBus) {
+    if (this.lives === 0 && previousLives > 0 && this.eventBus) {
       this.eventBus.emit('gameOver', null);
     }
   }
@@ -55,6 +57,15 @@ export default class GameState {
    */
   decrementLives() {
     this.setLives(this.lives - 1);
+  }
+
+  /**
+   * Resets lives to the initial value for the retry mechanic and emits
+   * livesChanged.
+   * @returns {void}
+   */
+  resetLives() {
+    this.setLives(this.initialLives);
   }
 
   /**
@@ -76,6 +87,56 @@ export default class GameState {
     if (this.eventBus) {
       this.eventBus.emit('puzzleSolved', { puzzleId });
     }
+  }
+
+  /**
+   * Adds an item to the inventory and emits inventoryChanged.
+   * @param {string} item
+   * @returns {void}
+   */
+  addToInventory(item) {
+    if (this.inventory.includes(item)) return;
+    this.inventory.push(item);
+    if (this.eventBus) {
+      this.eventBus.emit('inventoryChanged', {
+        inventory: [...this.inventory],
+        item,
+      });
+    }
+  }
+
+  /**
+   * Removes an item from the inventory and emits inventoryChanged.
+   * @param {string} item
+   * @returns {void}
+   */
+  removeFromInventory(item) {
+    const index = this.inventory.indexOf(item);
+    if (index === -1) return;
+    this.inventory.splice(index, 1);
+    if (this.eventBus) {
+      this.eventBus.emit('inventoryChanged', {
+        inventory: [...this.inventory],
+        item,
+      });
+    }
+  }
+
+  /**
+   * Checks whether the inventory contains an item.
+   * @param {string} item
+   * @returns {boolean}
+   */
+  hasItem(item) {
+    return this.inventory.includes(item);
+  }
+
+  /**
+   * Returns a copy of the inventory.
+   * @returns {string[]}
+   */
+  getInventory() {
+    return [...this.inventory];
   }
 
   /**
