@@ -13,7 +13,11 @@ import PlayerController from '../player/PlayerController.js';
  * at node coordinates, scattered trees, and the player character.
  */
 export default class MapScene {
-  constructor() {
+  constructor(eventBus, gameState) {
+    /** @type {import('../events/EventBus.js').default} */
+    this.eventBus = eventBus;
+    /** @type {import('../state/GameState.js').default} */
+    this.gameState = gameState;
     /** @type {THREE.Scene|null} */
     this.scene = null;
     /** @type {THREE.OrthographicCamera|null} */
@@ -86,7 +90,13 @@ export default class MapScene {
 
     // Player controller.
     this.playerController = new PlayerController();
-    this.playerController.init(this.scene, this.camera, renderer.domElement);
+    this.playerController.init(
+      this.scene,
+      this.camera,
+      renderer.domElement,
+      this.eventBus,
+      this.gameState
+    );
   }
 
   /**

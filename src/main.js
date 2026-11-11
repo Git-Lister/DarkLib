@@ -1,10 +1,11 @@
 import EventBus from './engine/events/EventBus.js';
 import SceneManager from './engine/scenes/SceneManager.js';
-import FadeOverlay from './engine/ui/FadeOverlay.js';
+import GameState from './engine/state/GameState.js';
 import TypewriterIntro from './engine/ui/TypewriterIntro.js';
 import { intro } from './campaigns/darkplace/narrative/intro.js';
 
 const eventBus = new EventBus();
+const gameState = new GameState(eventBus);
 
 function main() {
   const bootText = document.querySelector('p');
@@ -12,11 +13,11 @@ function main() {
     bootText.textContent = 'Scaffold ready.';
   }
 
-  const sceneManager = new SceneManager();
+  const sceneManager = new SceneManager(eventBus, gameState);
   sceneManager.init('game-canvas');
   sceneManager.startRenderLoop();
 
-  const fadeOverlay = new FadeOverlay();
+  const fadeOverlay = sceneManager.fadeOverlay;
   const typewriter = new TypewriterIntro(eventBus);
 
   typewriter.start(intro).then(() => {
@@ -31,6 +32,16 @@ function main() {
 
       return fadeOverlay.fadeIn(500);
     });
+  });
+
+  // Exit the library interior back to the map when the exit door is clicked.
+  eventBus.on('portalEntered', (payload) => {
+    if (payload && payload.target === 'exit') {
+      fadeOverlay.fadeOut(500).then(() => {
+        sceneManager.loadMap();
+        return fadeOverlay.fadeIn(500);
+      });
+    }
   });
 }
 
