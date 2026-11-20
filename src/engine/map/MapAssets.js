@@ -1,42 +1,64 @@
 import * as THREE from 'three';
+import { loadAsset } from './AssetLoader.js';
 
 /**
- * Creates a building mesh as a flat-shaded box.
- * @param {number|string} color - hex color or CSS color string
- * @returns {THREE.Mesh}
+ * Applies a flat-shaded MeshLambertMaterial to every mesh in `object`,
+ * preserving each mesh's original colour where one is defined. Used to force
+ * loaded .glb assets onto the project's flat-shaded aesthetic.
+ * @param {THREE.Object3D} object
  */
-export function createBuildingMesh(color) {
+export function applyFlatShadedMaterials(object) {
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    const source = child.material;
+    let color = 0x8d6e63;
+    if (source && source.color && source.color.isColor) {
+      color = source.color.clone();
+    }
+    child.material = new THREE.MeshLambertMaterial({ color, flatShading: true });
+  });
+}
+
+/**
+ * Creates a tree mesh from the generated tree.glb asset.
+ * @returns {Promise<THREE.Group>}
+ */
+export async function createTreeMesh() {
+  const scene = await loadAsset('/assets/blender/tree.glb');
+  const group = new THREE.Group();
+  scene.traverse((child) => {
+    if (child.isMesh) {
+      group.add(child.clone());
+    }
+  });
+  return group;
+}
+
+/**
+ * Creates a building mesh. When `assetPath` is provided, loads the .glb model;
+ * otherwise falls back to a flat-shaded BoxGeometry.
+ * @param {number|string} color - hex color or CSS color string
+ * @param {string} [assetPath] - optional path to a .glb/.gltf building asset
+ * @returns {Promise<THREE.Object3D>}
+ */
+export async function createBuildingMesh(color, assetPath) {
+  if (assetPath) {
+    const scene = await loadAsset(assetPath);
+    const group = new THREE.Group();
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        group.add(child.clone());
+      }
+    });
+    return group;
+  }
+
   const geometry = new THREE.BoxGeometry(2, 4, 2);
   const material = new THREE.MeshLambertMaterial({
     color,
     flatShading: true
   });
   return new THREE.Mesh(geometry, material);
-}
-
-/**
- * Creates a tree mesh: brown trunk (cylinder) + flat green canopy (cone).
- * Returned as a Group so trunk and canopy can be transformed independently.
- * @returns {THREE.Group}
- */
-export function createTreeMesh() {
-  const group = new THREE.Group();
-
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.25, 0.35, 1.8, 6),
-    new THREE.MeshLambertMaterial({ color: 0x5d4037, flatShading: true })
-  );
-  trunk.position.y = 0.9;
-  group.add(trunk);
-
-  const canopy = new THREE.Mesh(
-    new THREE.ConeGeometry(0.9, 2.2, 4),
-    new THREE.MeshLambertMaterial({ color: 0x388e3c, flatShading: true })
-  );
-  canopy.position.y = 2.2;
-  group.add(canopy);
-
-  return group;
 }
 
 /**

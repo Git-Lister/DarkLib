@@ -252,3 +252,77 @@ No mobile-specific changes in Tranche 5.
 
 ### Event reporting
 Now in scope (Tranche 5): `RemoteReporter` forwards `nodeArrived`, `puzzleSolved`, `puzzleFailed`, and `gameOver` to `http://localhost:8787/events`. Network errors are caught and logged as warnings; the game keeps running.
+
+
+# CHANGESET — Tranche 6A.1
+
+## Goal
+Establish the automated asset pipeline and integrate `.glb` assets into the game engine instead of primitive geometries.
+
+## Files Created
+
+### New files
+- `opencode.json` — MCP configuration launching the `uvx blender-mcp` server (local, enabled).
+- `tools/generate_assets.py` — headless Blender Python script that generates `tree.glb` and `library.glb` (flat-shaded) into `public/assets/blender`.
+- `tools/generate_assets.js` — Node wrapper that locates Blender (Windows/WSL paths with fallback) and runs the Python script headlessly.
+- `src/engine/map/AssetLoader.js` — shared `GLTFLoader` instance with an async `loadAsset(path)` returning a Promise resolving to `gltf.scene`, plus a `Map`-based cache that clones the cached scene for repeated requests (e.g. multiple trees). Exports `clearAssetCache()` for tests/teardown.
+
+## Files Modified
+
+- `package.json` — added `"generate-assets": "node tools/generate_assets.js"` script.
+- `src/engine/map/MapAssets.js` — `createTreeMesh()` is now async and loads `/assets/blender/tree.glb` via `AssetLoader`. `createBuildingMesh(color, assetPath)` accepts an optional `assetPath`; when provided it loads the `.glb` model, otherwise it falls back to a flat-shaded `BoxGeometry`. Added `applyFlatShadedMaterials()` helper. `createGroundMesh()` and `disposeObject()` unchanged.
+- `src/engine/map/MapScene.js` — `init()` is now `async`. It `await`s `createBuildingMesh()` for the library node (`/assets/blender/library.glb`) and `createTreeMesh()` for each tree, then traverses the loaded `.glb` meshes and overrides their materials with flat-shaded `MeshLambertMaterial` to match the aesthetic. Non-library nodes keep the `BoxGeometry` fallback.
+- `src/engine/scenes/SceneManager.js` — `loadMap()` is now `async` and `await`s `mapScene.init()` so the render loop only switches to the map once all `.glb` assets are loaded.
+- `eslint.config.js` — added `tools/**` to the ignore list so the provided Blender tooling scripts (which use Node's `process`) are not linted as game source.
+
+## Assumptions
+- `.glb` assets are produced by running `npm run generate-assets` (manually, per spec) and placed in `public/assets/blender/`.
+- The library node (`MAP_NODES[0]`, id `library`) uses `library.glb`; the other three nodes fall back to `BoxGeometry`.
+- The glTF export origin is at base centre (per the Blender export preset), so building `position.y = 2` places the base correctly.
+- `SceneManager.loadMap()` returning a promise is fine in `src/main.js` (it is not awaited there; the render loop is already running and the scene is set once assets resolve).
+
+## Deviations from ARCHITECTURE.md / AESTHETIC-SPEC.md
+- None. Loaded `.glb` meshes are forced to `MeshLambertMaterial` with `flatShading: true`; no `MeshStandardMaterial`, no PBR, no Toon shading, no outlines (deferred to Tranche 6B).
+
+## Questions / Uncertainties
+- None.
+
+## Testing Notes
+
+### Desktop
+`npm run test` — verbatim output:
+```
+> darklib@0.0.1 test
+> vitest run
+
+ RUN  v2.1.9 /home/ghaigh/github/DarkLib
+
+ ✓ test/RoomData.test.js (4 tests) 3ms
+ ✓ test/EventBus.test.js (3 tests) 4ms
+ ✓ test/MapData.test.js (7 tests) 5ms
+ ✓ test/RemoteReporter.test.js (7 tests) 6ms
+ ✓ test/GameState.test.js (6 tests) 7ms
+ ✓ test/TypewriterIntro.test.js (4 tests) 40ms
+
+ Test Files  6 passed (6)
+      Tests  31 passed (31)
+   Start at  12:16:46
+   Duration  1.13s (transform 96ms, setup 0ms, collect 198ms, tests 64ms, environment 3.90s, prepare 701ms)
+```
+Result: PASS — all 31 tests pass (7 RemoteReporter + 6 GameState + 7 MapData + 4 RoomData + 4 TypewriterIntro + 3 EventBus).
+
+`npm run lint` — verbatim output:
+```
+> darklib@0.0.1 lint
+> eslint .
+
+(zero errors)
+```
+Result: PASS — zero lint errors (`tools/` is now ignored; all `src/` and `test/` is clean).
+
+### Manual smoke test (user-performed, out of scope for this agent)
+- `npm run generate-assets` requires Blender on `PATH`; produces `public/assets/blender/tree.glb` and `library.glb`.
+- `npm run dev` to visually verify the flat-shaded 3D models appear on the campus map.
+
+### Mobile
+No mobile-specific changes in Tranche 6A.1.

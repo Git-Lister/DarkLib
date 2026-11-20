@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
+    "generate-assets": "node tools/generate_assets.js",
     "server": "node serverless/event-receiver.js"
   },
   "dependencies": {

@@ -3,7 +3,7 @@ import js from '@eslint/js';
 export default [
   {
     // Ignore build artifacts and generated files so lint only checks source.
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: ['dist/**', 'node_modules/**', 'tools/**'],
   },
   js.configs.recommended,
   {

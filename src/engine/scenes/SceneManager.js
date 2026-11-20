@@ -161,15 +161,16 @@ export default class SceneManager {
 
   /**
    * Load the campus map: create a MapScene, initialise it with the renderer,
-   * and switch the render loop over to it.
-   * @returns {void}
+   * and switch the render loop over to it. Waits for MapScene.init() to
+   * resolve so all .glb assets are loaded before rendering.
+   * @returns {Promise<void>}
    */
-  loadMap() {
+  async loadMap() {
     if (!this.renderer) {
       throw new Error('SceneManager.loadMap: renderer not initialised');
     }
     this.mapScene = new MapScene(this.eventBus, this.gameState);
-    this.mapScene.init(this.renderer);
+    await this.mapScene.init(this.renderer);
     this.setScene(this.mapScene.scene, this.mapScene.camera);
   }
 

@@ -4,13 +4,14 @@ import {
   createBuildingMesh,
   createTreeMesh,
   createGroundMesh,
+  applyFlatShadedMaterials,
   disposeObject
 } from './MapAssets.js';
 import PlayerController from '../player/PlayerController.js';
 
 /**
  * MapScene renders the flat orthographic campus map: ground, building boxes
- * at node coordinates, scattered trees, and the player character.
+ * (or .glb models) at node coordinates, scattered trees, and the player character.
  */
 export default class MapScene {
   constructor(eventBus, gameState) {
@@ -31,10 +32,11 @@ export default class MapScene {
   /**
    * Initialise the map scene: scene, orthographic camera (tilted 15-20 deg
    * from top-down), lights, ground, buildings, trees, and player controller.
+   * Loads .glb assets asynchronously and applies flat-shaded materials.
    * @param {THREE.WebGLRenderer} renderer
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  init(renderer) {
+  async init(renderer) {
     this.renderer = renderer;
 
     this.scene = new THREE.Scene();
@@ -67,14 +69,19 @@ export default class MapScene {
     const ground = createGroundMesh();
     this.scene.add(ground);
 
-    // Building boxes at node coordinates.
+    // Buildings at node coordinates. The library node uses the generated
+    // library.glb asset; all other nodes fall back to a BoxGeometry.
     for (const node of MAP_NODES) {
-      const building = createBuildingMesh(0x8d6e63);
+      const assetPath = node.id === 'library'
+        ? '/assets/blender/library.glb'
+        : undefined;
+      const building = await createBuildingMesh(0x8d6e63, assetPath);
+      applyFlatShadedMaterials(building);
       building.position.set(node.x, 2, node.z);
       this.scene.add(building);
     }
 
-    // Scatter a few trees.
+    // Scatter a few trees (loaded from tree.glb).
     const treePositions = [
       { x: -14, z: -8 },
       { x: 14, z: -12 },
@@ -83,7 +90,8 @@ export default class MapScene {
       { x: 0, z: -18 }
     ];
     for (const pos of treePositions) {
-      const tree = createTreeMesh();
+      const tree = await createTreeMesh();
+      applyFlatShadedMaterials(tree);
       tree.position.set(pos.x, 0, pos.z);
       this.scene.add(tree);
     }
